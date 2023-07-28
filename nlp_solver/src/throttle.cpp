@@ -1,9 +1,4 @@
 #include "throttle.h"
-#include <cppad/cppad.hpp>
-#include <cppad/ipopt/solve.hpp>
-#include <cppad/example/cppad_eigen.hpp>
-#include <Eigen/Dense>
-#include <Eigen/Core>
 
 using namespace std;
 using namespace Eigen;
