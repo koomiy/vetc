@@ -1,0 +1,36 @@
+独立変数xや、それらによって決定される従属変数yの宣言方法、
+および、関数f: x -> y　の宣言方法について学習した
+
+template <class ADVector>
+bool Test(void)
+{
+    // 従属変数Xの宣言
+    ADVector X(2);
+    X[0] = 0.;
+    X[1] = 1.;
+    
+    // 独立変数Xを追加(Recording)
+    CppAD::Independent(X);
+    // このあとも独立変数を宣言するなら、それも追加できる
+    
+    // 従属変数Yの宣言、いくつかの独立変数Xにより決定する
+    AD<double> a = X[0] + X[1];
+    AD<double> b = X[0] * x[1];
+    ADVector Y(2);
+    Y[0] = a;
+    Y[1] = b;
+    
+    // Y = f(X)となる関数fを宣言、以降独立変数の追加はできない(Recording stop)
+    CppAD::ADFun<double> f(X, Y);
+    
+    // 先で宣言した関数fを用いて、y = f(x)を計算できる
+    y = f.Forward(0, x);
+    // ちなみに、一階微分値を計算したい場合は
+    y = f.Forward(1, x);
+    // 二階微分値を計算したい場合は
+    y = f.Forward(2, X);
+    // このForwardという名前は、前方差分法から来ている
+}
+
+ADとはなにかを調べる必要がありそうだ
+

@@ -1,0 +1,39 @@
+cppadの使い方を学んだ
+cppad_testvector = eigenにしてcmakeインストールすることで、
+eigenライブラリが使用可能となる
+CPPAD_TESTVECTOR(double)は、eigen_vector<double>と全く同じ意味となる
+eigen_vector<double>は、Eigen::Matrix<double, Dynamic, 1>と同じ意味である
+なので、Eigen::Matrixの持つ内積や外積などを使用できる。
+
+CppAD::ADFun<Base>(x, y)は、
+y = f(x)の関係を結びつけるメソッド
+
+recordingやそのストップ機能、CppAD::Independent(x)については
+追って調べる必要がある。
+
+◎クラステンプレートについて
+// 任意の型を指定できるhogehogeというクラステンプレート
+// Baseには、あらゆる型を指定して良いという意味合いを込めている
+// この場合、hogehoge<int>オブジェクトを生成すると、int型のngongoを利用できる
+template <class Base> class hogehoge{ public: Base& ngongo;}
+
+// 実数値に限り任意の型を指定できるpiyopiyo関数テンプレート
+// Scalarには、実数値を格納できるあらゆる型(intやdouble、real_tなど)を
+// 指定して良いという意味合いを込めている
+// vec2_t<real_t>& piyopiyo(real_t& x)とすると、
+// real_t型の引数xによる演算が関数内で行われ、vec2_t<real_t>型のベクトルが
+// 返ってくる
+template <class Scalar> vec2_t<Scalar>& piyopiyo(Scalar& x){ Scalar型の色々; }
+
+このように、templateでクラスや関数を定義しておけば、
+柔軟に型を使うことができるので大変便利
+
+
+http://ext-web.edu.sgu.ac.jp/koike/semi/VC2005/c20.html
+
+◎typedefについて
+// 以降double型をdb型として記述できる
+typedef double db;
+型の定義ができる
+
+

@@ -1,0 +1,10 @@
+Ipoptインストール時のメッセージ
+
+Install completed. If executing any of the installed
+binaries results in an error that shared libraries cannot
+be found, you may need to
+  - add 'export LD_LIBRARY_PATH=/home/scorpion/devel/cppad.git/external/dist/lib' to your ~/.bashrc (Linux)
+  - add 'export DYLD_LIBRARY_PATH=/home/scorpion/devel/cppad.git/external/dist/lib' to ~/.bashrc (OS X)
+
+pkg-configの元検索ディレクトリたち
+/home/scorpion/catkin_ws/devel/lib/pkgconfig:/opt/ros/noetic/lib/pkgconfig

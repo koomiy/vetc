@@ -1,0 +1,152 @@
+環境構築の手順書
+
+基本的にすべて最新版をインストールすること
+
+1. 開発プラットフォーム
+ros noetic
+制御器やセンサー、アクチュエータ間の通信を管理するためのプラットフォーム
+ros1の最新版であり、ros2よりも開発ドキュメントが豊富で初心者向けだ
+これを使いたいがために、raspberry piにはubuntu 20.04のOSを入れる必要がある
+
+visual studio code
+インクルードで定義した変数や関数へ一瞬で飛べるパッケージや、
+日本語で開発できるパッケージをインストールしておくとよい
+しかし、実際にはcmakeで参照関係を記述していないので、
+すべての場合で定義や宣言へ飛べるわけではない
+
+2. CppAD
+●最も簡単なインストール方法
+特にこだわりがない場合は下記コマンドで一発
+sudo apt install -y cppad
+
+●実践的なインストール方法
+より実践的には、CppAD内の計算でeigen行列を使うほうが圧倒的に開発スピードが早い
+よって、gitリポジトリから最新版をダウンロードして、
+ローカル上でカスタマイズしてからインストールする必要がある
+
+○ダウンロードと下準備
+username(私の環境では/home/scorpion)ディレクトリ直下にdevelフォルダを作成する
+このdevelフォルダにいろんなパッケージをインストールする
+username/develにて、下記コマンドを実行
+git clone https://github.com/coin-or/CppAD.git cppad.git
+これでcppad.gitフォルダがダウンロードされていれば成功
+
+cppad.gitフォルダ直下にbuildフォルダを作成する
+このbuildフォルダでビルドを行う
+また、cppad.gitフォルダ直下にlocalフォルダを作成する
+このlocalフォルダにライブラリやインクルードなどをインストールする
+
+○cmake
+cmakeコマンドでビルド&インストールを行う
+様々なオプションがあるが、結論から先にいうと、
+次のコマンドをdevel/cppad.git/buildディレクトリで実行すればよい
+cmake                                                                      \
+    -G "Unix Makefiles"                                                    \
+    -D cppad_prefix=username/devel/cppad.git/local                         \
+    -D include_adolc=true                                                  \
+    -D include_eigen=true                                                  \
+    -D include_ipopt=true                                                  \
+    -D colpack_prefix=username/devel/cppad.git/build/prefix                \
+    -D fadbad_prefix=username/devel/cppad.git/build/prefix                 \
+    -D sacado_prefix=username/devel/cppad.git/build/prefix                 \
+    -D cppad_testvector=eigen                                              \
+    ..
+ただし、以降に記述する内容を事前に実行しておくこと
+    
+○cmakeを実行する前にやるべきこと
+◎外部ライブラリのインストール
+cmakeコマンドを実行する前にやらなければならない準備がある
+それは外部ライブラリのインストールだ
+
+後述するblas、lapack以外の外部ライブラリXXXXをインストールするには、
+cppad.gitディレクトリでbin/get_XXXX.shを実行する
+すると、cppad.git/build./prefixに外部ライブラリXXXXがインストールされる
+例えば、ipoptをインストールしたいときは、
+cppad.gitディレクトリでbin/get_ipopt.shを実行する
+
+以下必要な外部ライブラリである
+必ずこの順でインストールすること
+・blas       ベクトル、行列に関する基本演算ライブラリ
+・lapack     blasを用いて連立一次方程式や固有値などの線形計算を行うライブラリ　
+・colpack    adolcに必要
+・adolc      
+・eigen      直感的に行列演算をコーディングできる
+・ipopt      非線形最適ソルバー
+・fadbad     
+・sacado     
+
+◎blas&lapackのインストール
+lapackの最新版をtar.gz形式でダウンロード
+解凍してdevelフォルダに移す
+端末でdevel/lapack_xxxに移る　※xxxはバージョンの数字
+cp make.inc.example make.inc を実行する
+make blaslib を実行し、librefblas.a を生成する
+make lapcaklib を実行し、liblapack.a を生成する
+生成したライブラリファイルのリンクを、
+それぞれ「libblas.a」、「liblapack.a」という名前で
+usr/local/libの中に作成する
+sudo ln -s ./librefblas.a /usr/local/lib/libblas.a
+sudo ln -s ./liblapack.a /usr/local/lib/liblapack.a
+
+以上が最も簡素なインストール方法である
+より実践的には、CPUに適したBLASをインストールすることで計算効率が高くなる
+kashiさんのレビュー(2020年, verifiedby.me/adiary/0150)によると、
+OpenBlasやBLISが幅広いサイズの行列で高い計算効率が期待できるそうだ
+MKLもいいが、小サイズ行列の演算が遅く、用途を選ぶかもしれないそうだ
+raspberry piはARM製のCPUを搭載しているので、これに最適なBLASを見つけるのもいいだろう
+
+◎パッケージ・コンフィグの検索に使う環境変数の追加設定
+また、PKG_CONFIG_PATHに下記ディレクトリを追加する必要がある
+export PKG_CONFIG_PATH=/home/scorpion/devel/cppad.git/build/prefix/lib/pkgconfig
+ちなみに、PKG_CONFIG_PATHとは、pkg-configが.pcファイルを検索するパスを指定する環境変数だ
+
+○cmake_checkでビルド&テスト
+cppad.git/buildディレクトリで下記コマンドを実行すると、ビルド&テストができる
+make check .
+実行には一時間程度要する
+
+個別にインストールしたい場合は、下記のようにする
+make check_introduction     初歩機能
+make check_example          通常のサンプル機能および、いくつかの非推奨サンプル機能
+make check_test_more        正確性テスト
+make check_speed            シングルスレッドにおけるスピードテスト
+make check_cppad_ipopt      非推奨機能のcppad_ipopt_nlpの正確性およびスピードのテスト
+
+また、make check_example_multi_threadを実行すると、
+マルチスレッドにおけるスピードテストが行える
+
+すべての機能をインストールする必要性はないと思われるが、
+筆者は各機能の使いみちを詳しく知らないのでフルインストールした
+
+○インストールする
+cppad.git/buildディレクトリで
+make install
+を実行して、これまでにビルドしてきたものをインストールする
+cppad_prefixをcppad.git/localに設定しているので、
+ここにincludeやlibがインストールされているはずだ
+
+3. ifopt
+sudo apt install -y ros-noetic-ifpot
+で一発
+ソースファイルはかなりすっきりしている印象
+使い方はよくわからないし、使える場面も限定的かも
+
+4. ipopt
+これ単体で使うのは非常に難易度が高いと思われる
+開発ドキュメントの数が無いに等しいし、
+どのソースファイルにどんな機能が記述されているかも不明だ
+したがって、CppADやCasAdiといった上位の開発ツールの内部に組み込んで使うことを推奨する
+CasAdiはpythonやMatlabでの開発を想定して作られているので、c++ユーザーには不向きだ
+そこで筆者はCppADを使用することにしたというわけだ
+
+ipopt単体のインストール手順は次のとおりだ
+blas/lapackのインストール
+hslのインストール
+ipoptのインストール
+git上でipoptをダウンロードできる
+
+Downloadsフォルダの
+coinhsl-archive-2022.12.02.tar
+を解凍する。
+urlに従ってビルド&インストールすると、
+usr/local/includeにhslのライブラリが格納される
