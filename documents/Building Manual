@@ -43,6 +43,8 @@ cmakeコマンドでビルド&インストールを行う
 cmake                                                                      \
     -G "Unix Makefiles"                                                    \
     -D cppad_prefix=username/devel/cppad.git/local                         \
+    -D cmake_install_includedirs=include                                   \
+    -D cmake_install_libdirs=lib64 lib                                     \
     -D include_adolc=true                                                  \
     -D include_eigen=true                                                  \
     -D include_ipopt=true                                                  \
@@ -55,9 +57,6 @@ cmake                                                                      \
     
 ○cmakeを実行する前にやるべきこと
 ◎外部ライブラリのインストール
-cmakeコマンドを実行する前にやらなければならない準備がある
-それは外部ライブラリのインストールだ
-
 後述するblas、lapack以外の外部ライブラリXXXXをインストールするには、
 cppad.gitディレクトリでbin/get_XXXX.shを実行する
 すると、cppad.git/build./prefixに外部ライブラリXXXXがインストールされる
@@ -78,15 +77,16 @@ cppad.gitディレクトリでbin/get_ipopt.shを実行する
 ◎blas&lapackのインストール
 lapackの最新版をtar.gz形式でダウンロード
 解凍してdevelフォルダに移す
-端末でdevel/lapack_xxxに移る　※xxxはバージョンの数字
+端末でdevel/lapack-X.XXに移る　※X.XXはバージョンの数字
 cp make.inc.example make.inc を実行する
 make blaslib を実行し、librefblas.a を生成する
-make lapcaklib を実行し、liblapack.a を生成する
+make lapacklib を実行し、liblapack.a を生成する
 生成したライブラリファイルのリンクを、
 それぞれ「libblas.a」、「liblapack.a」という名前で
 usr/local/libの中に作成する
-sudo ln -s ./librefblas.a /usr/local/lib/libblas.a
-sudo ln -s ./liblapack.a /usr/local/lib/liblapack.a
+sudo ln -s /home/scorpion/lapack-X.XX/librefblas.a /usr/local/lib/libblas.a
+sudo ln -s /home/scorpion/lapack-X.XX/liblapack.a /usr/local/lib/liblapack.a
+なお、lapackのディレクトリは環境によるので、注意すること。
 
 以上が最も簡素なインストール方法である
 より実践的には、CPUに適したBLASをインストールすることで計算効率が高くなる
@@ -96,9 +96,18 @@ MKLもいいが、小サイズ行列の演算が遅く、用途を選ぶかも�
 raspberry piはARM製のCPUを搭載しているので、これに最適なBLASを見つけるのもいいだろう
 
 ◎パッケージ・コンフィグの検索に使う環境変数の追加設定
-また、PKG_CONFIG_PATHに下記ディレクトリを追加する必要がある
-export PKG_CONFIG_PATH=/home/scorpion/devel/cppad.git/build/prefix/lib/pkgconfig
-ちなみに、PKG_CONFIG_PATHとは、pkg-configが.pcファイルを検索するパスを指定する環境変数だ
+PKG_CONFIG_PATHに下記ディレクトリを追加する必要がある
+username/devel/cppad.git/build/prefix/lib/pkgconfig
+username/devel/cppad.git/build/prefix/lib64/pkgconfig
+PKG_CONFIG_PATHとは、pkg-configが.pcファイルを検索するためのパスを指定する環境変数のことだ
+
+まずはじめに、
+echo $PKG_CONFIG_PATH を実行し、もともと設定されている環境変数${ENV}を確認する
+次に、下記コマンドを実行し、必要なディレクトリを追加する
+export PKG_CONFIG_PATH=${ENV}:username/devel/cppad.git/build/prefix/lib/pkgconfig:username/devel/cppad.git/build/prefix/lib64/pkgconfig
+ここで、例えば/usr/lib/pkgconfigが環境変数として設定されている場合、
+${ENV} = /usr/lib/pkgconfigである
+
 
 ○cmake_checkでビルド&テスト
 cppad.git/buildディレクトリで下記コマンドを実行すると、ビルド&テストができる
@@ -123,7 +132,15 @@ cppad.git/buildディレクトリで
 make install
 を実行して、これまでにビルドしてきたものをインストールする
 cppad_prefixをcppad.git/localに設定しているので、
-ここにincludeやlibがインストールされているはずだ
+ここにincludeやlibがインストールされる
+
+○インストールファイルを/usr/localにコピーする
+sudo cp -r usrname/devel/cppad.git/local/include/cppad /usr/local/include/cppad
+sudo cp usrname/devel/cppad.git/local/include/cppad_ipopt_nlp.hpp /usr/local/include
+sudo cp usrname/devel/cppad.git/local/lib64/pkgconfig/cppad.pc /usr/local/lib64/pkgconfig
+sudo cp usrname/devel/cppad.git/local/lib64/libcppad_ipopt.a /usr/local/lib64
+sudo cp usrname/devel/cppad.git/local/lib64/libcppad_lib.so /usr/local/lib64
+sudo cp usrname/devel/cppad.git/local/lib64/libcppad_lib.so.1702 /usr/local/lib64
 
 3. ifopt
 sudo apt install -y ros-noetic-ifpot
