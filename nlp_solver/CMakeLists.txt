@@ -15,9 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 3.3 REQUIRED
 )
 
-find_package(cppad 3.3 REQUIRED
-)
-
 catkin_package()
 
 include_directories(
@@ -35,7 +32,7 @@ add_executable(nlp_node
 target_link_libraries(nlp_node
   ${catkin_LIBRARIES}
   Eigen3::Eigen
-  CppAD::cppad
+  cppad
 )
 
 link_directories(
