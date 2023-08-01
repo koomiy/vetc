@@ -135,12 +135,16 @@ cppad_prefixをcppad.git/localに設定しているので、
 ここにincludeやlibがインストールされる
 
 ○インストールファイルを/usr/localにコピーする
+以下の操作により、/usr/local内のincludeファイルを参照することで、自プログラムにcppadの機能を組み込める
 sudo cp -r usrname/devel/cppad.git/local/include/cppad /usr/local/include/cppad
 sudo cp usrname/devel/cppad.git/local/include/cppad_ipopt_nlp.hpp /usr/local/include
 sudo cp usrname/devel/cppad.git/local/lib64/pkgconfig/cppad.pc /usr/local/lib64/pkgconfig
 sudo cp usrname/devel/cppad.git/local/lib64/libcppad_ipopt.a /usr/local/lib64
 sudo cp usrname/devel/cppad.git/local/lib64/libcppad_lib.so /usr/local/lib64
 sudo cp usrname/devel/cppad.git/local/lib64/libcppad_lib.so.1702 /usr/local/lib64
+
+また、/cppad.git/build/prefix/include内に存在する関連インクルードファイルについても、
+同様に/usr/local/includeにコピーする必要がある
 
 3. ifopt
 sudo apt install -y ros-noetic-ifpot

@@ -1,7 +1,9 @@
-#include "throttle.h"
+#include "../include/nlp_solver.hpp"
 
 using namespace std;
 using namespace Eigen;
+using namespace CppAD::AD;
+using namespace CppAD::NearEqual;
 
 // set the timestep length and duration
 size_t N = 5;
@@ -18,108 +20,102 @@ size_t nx = (N+1)*2;
 size_t nu = N*1;
 
 ////////////////////////////////////////////////
-namespace {
-    using CppAD::AD;
-    using CppAD::NearEqual;
+namespace vetc{
 
-    class FG_eval { // これはthrottle.hに記述すべきでは？
-    public:
-        typedef CPPAD_TESTVECTOR(AD<double>) Evector;   // eigen vectorの型定義
-        void operator()(Evector& fg, const Evector& x){
-            size_t i;
-            assert(fg.size() == 1 + N*2);   // assertは式が偽のときにプログラムを異常終了するコマンド
-            assert(x.size() == N*3+2);
+void FG_eval::operator()(Evector& fg, const Evector& x){
+    // Evectorはvectorのようにpush_backコマンドを使えない
+    // x のうち、どこからどこまでが x と u なのか明確にする
+    // f, g の設定は計算式から見直すべき
 
-            // x0をどっから持ってこようか
-            // 構造上、FG_evalのクラス内にstateEqを定義せざるを得ない？
-            // あるいは、FG_evalにThrottleを継承させるか
-            // そうすると、Throttleで定義したxとoperatorで定義したxが干渉するから要改善
-            // indexing
-            Evector x0;
-            x0 = {x[0], x[1]};
+    // 汎用インデックスの定義
+    size_t i;
 
-            Evector xhat;
-            for (i = 2; i < (N+1)*2; i++){
-                xhat.push_back(x[i]);   //x1~xN
-            }
-            Evector uhat;
-            for (i = N*2; i < N*(2+1); i++){
-                uhat.push_back(x[i]);
-            }
+    // サイズが異常のとき、強制終了
+    assert(fg.size() == 1 + N*2);
+    assert(x.size() == N*3+2);
 
-            // 状態コスト係数の定義
-            Vector2d q{1.0, 1.0};
-            MatrixXd Q(2, 2);
-            Q = q.asDiagonal();
-            VectorXd qhat = q;
-            for(i = 0; i < N-1; i++){
-                qhat << qhat,
-                        q;
-            }
-            MatrixXd Qhat(N*2, N*2);
-            Qhat = qhat.asDiagonal();
+    // indexing
+    Evector x0;
+    x0 = {x[0], x[1]};
+    Evector xhat;
+    for (i = 2; i < (N+1)*2; i++){
+        xhat.push_back(x[i]);   //x1~xN
+    }
+    Evector uhat;
+    for (i = N*2; i < N*(2+1); i++){
+        uhat.push_back(x[i]);
+    }
 
-            // 入力コスト係数の定義
-            double r = 1.0;
-            VectorXd rhat = r;
-            for (i = 0; i < N-1; i++){
-                rhat << rhat,
-                        r;
-            }
-            MatrixXd Rhat(N, N);
-            Rhat = rhat.asDiagonal();
+    // 状態コスト係数の定義
+    Vector2d q{1.0, 1.0};
+    MatrixXd Q(2, 2);
+    Q = q.asDiagonal();
+    VectorXd qhat = q;
+    for(i = 0; i < N-1; i++){
+        qhat << qhat,
+                q;
+    }
+    MatrixXd Qhat(N*2, N*2);
+    Qhat = qhat.asDiagonal();
 
-            // initial state cost
-            double cost_init;
-            cost_init = x0.transpose()*Q*x0;
+    // 入力コスト係数の定義
+    double r = 1.0;
+    VectorXd rhat = r;
+    for (i = 0; i < N-1; i++){
+        rhat << rhat,
+                r;
+    }
+    MatrixXd Rhat(N, N);
+    Rhat = rhat.asDiagonal();
 
-            // state cost
-            double cost_state;
-            cost_state = xhat.transpose()*Qhat*xhat;
+    // 初期状態コスト
+    double cost_init;
+    cost_init = x0.transpose()*Q*x0;
 
-            // input cost
-            double cost_input;
-            cost_input = uhat.transpose()*Rhat*uhat;
+    // 状態コスト
+    double cost_state;
+    cost_state = xhat.transpose()*Qhat*xhat;
 
-            // f(x)
-            fg[0] = 1/2*(cost_state + cost_input + cost_init);
+    // 入力
+    double cost_input;
+    cost_input = uhat.transpose()*Rhat*uhat;
 
-            // g(x)
-            for (i = 1; i < (1 + N); i++){
-                Evector& str;
-                vector<double> vx;
-                if (i == 1){
-                    vx[i-1] = {xhat[2*i-2], xhat[2*i-1]};
-                    str = vx[i-1] - (x0 + dt*stateEq(x0, uhat[i-1]));
-                } else {
-                    vx[i-1] = {xhat[2*i-2], xhat[2*i-1]};
-                    vx[i-2] = {xhat[2*(i-1)-2], xhat[2*(i-1)-1]};
-                    str = vx[i-1] - (vx[i-2] + dt*stateEq(vx[i-2], uhat[i-1]));
-                }
-                
-                fg[2*i - 1] = str[0];
-                fg[2*i] = str[1];
-            }
+    // f(x)
+    fg[0] = 1/2*(cost_state + cost_input + cost_init);
 
-            return; // 何を返すの？
+    // g(x)
+    for (i = 1; i < (1 + N); i++){
+        Evector& str;
+        vector<double> vx;
+        if (i == 1){
+            vx[i-1] = {xhat[2*i-2], xhat[2*i-1]};
+            str = vx[i-1] - (x0 + dt*stateEq(x0, uhat[i-1]));
+        } else {
+            vx[i-1] = {xhat[2*i-2], xhat[2*i-1]};
+            vx[i-2] = {xhat[2*(i-1)-2], xhat[2*(i-1)-1]};
+            str = vx[i-1] - (vx[i-2] + dt*stateEq(vx[i-2], uhat[i-1]));
         }
-    };
+        
+        fg[2*i - 1] = str[0];
+        fg[2*i] = str[1];
+    }
+
+    return;
+    
 }
 
-// VectorXdとかvectorの互換性整備
-// 最適ソルバー以外の部分の構築
-vector<double> solveOpt(VectorXd x){
+vector<double> solveNLP::solve(VectorXd x){
     bool ok = true;
     size_t i;
-    typedef CPPAD_TESTVECTOR(double) Evector;
+    typedef CPPAD_TESTVECTOR(AD<double>) Evector;
 
-    // number of independent variables
+    // 独立変数の個数
     size_t nx = N*2;
 
-    // number of constraints
+    // 制約条件の個数
     size_t ng = N*2;
 
-    // initial value of the independent variables
+    // 独立変数の初期値
     Evector xi(nx);
     for (i = 0; i < nx; i++){
         xi[i] = 0.0;
@@ -127,19 +123,19 @@ vector<double> solveOpt(VectorXd x){
     xi[0] = x[0];
     xi[1] = x[1];
 
-    // lower and upper limits for x
+    // 状態量の上限と下限を設定する
     Evector xl(nx), xu(nx);
     for (i = 0; i < nx; i++){
         // バルブ角度の制限
         xl[2*i] = 0.0;
-        xu[2*i] = pi/2;   // piをどっかで定義しておく
+        xu[2*i] = M_PI/2;
 
         // バルブ角速度の制限
         xl[2*i+1] = ;
         xu[2*i+1] = ;
     }
 
-    // lower and upper limits for g
+    // 制約関数の上限と下限を設定する
     Evector gl(ng), gu(ng);
     for (i = 0; i < ng; i++){
         // 等号制約条件
@@ -147,40 +143,39 @@ vector<double> solveOpt(VectorXd x){
         gu[i] = 0.0;
     }
 
-    // object that computes objective and constraints
-    FG_eval fg_eval;    // 上でオーバーロードした演算子使わんの？
+    // 目的関数と制約条件を計算するオブジェクト
+    FG_eval fg_eval;
 
-    // options
+    // NLPソルバーのオプション設定
     std::string options;
 
-    // turn off any printing
+    // 処理内容をプリントしない
     options += "Integer print_level 0\n";
     options += "String  Sb          yes\n";
 
-    // maximum number of iterations
+    // 最大反復回数
     options += "Integer max_iter    10\n";
 
-    // approximate accuracy in first order necessary conditions;
-    // see Mathematical Programming, Volume 106, Number 1,
-    // Page 25-27, Equation (6)
+    // 一次近似における必要精度
     options += "Numeric tol         1e-6\n";
 
-    // dervative testing
+    // 導関数のテスト??
     options += "String  derivative_test             second-order\n";
 
-    // maximum amount of random pertubation; e.g.,
-    // when evaluation finite diff
+    // 有限差分評価時における、ランダム摂動量の最大値
     options += "Numeric point_perturbation_radius   0.\n";
 
-    // place to return solution
+    // オプション設定終わり
+
+    // 解を返す変数
     CppAD::ipopt::solve_result<Evector> solution;
 
-    // solve the problem
+    // 非線形問題を解く
     CppAD::ipopt::solve<Evector, FG_eval>(
         options, xi, xl, xu, gl, gu, fg_eval, solution
     );
 
-    // Check some of the solution values
+    // 解の一部をチェックする
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
     
     auto cost = solution.obj_value;
@@ -194,3 +189,5 @@ vector<double> solveOpt(VectorXd x){
 
     return sol;
 }
+
+}   // end vetc namespace

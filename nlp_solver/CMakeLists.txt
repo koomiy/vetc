@@ -20,7 +20,7 @@ catkin_package()
 include_directories(
   include
   /usr/include/eigen3
-  /usr/include/cppad
+  /usr/local/include/cppad
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -37,5 +37,5 @@ target_link_libraries(nlp_node
 
 link_directories(
   /usr/include/eigen3
-  /usr/include/cppad
+  /usr/local/include/cppad
 )
