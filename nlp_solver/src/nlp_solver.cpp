@@ -2,192 +2,133 @@
 
 using namespace std;
 using namespace Eigen;
-using namespace CppAD::AD;
-using namespace CppAD::NearEqual;
+using CppAD::AD;
+using CppAD::NearEqual;
 
-// set the timestep length and duration
-size_t N = 5;
-double dt = 0.05;
-
-// indexing
-// 0~N-1まではθの値
-// N~2N-1まではdθの値
-// 2N~3N-1まではuの値
-size_t theta_start = 0;
-size_t dtheta_start = theta_start + N;
-size_t u_start = dtheta_start + N;
-size_t nx = (N+1)*2;
-size_t nu = N*1;
-
-////////////////////////////////////////////////
 namespace vetc{
 
 void FG_eval::operator()(Evector& fg, const Evector& x){
-    // Evectorはvectorのようにpush_backコマンドを使えない
-    // x のうち、どこからどこまでが x と u なのか明確にする
-    // f, g の設定は計算式から見直すべき
-
-    // 汎用インデックスの定義
-    size_t i;
+    // 予測ステップ数
+    int N = PREDICTION_STEPS_NUM;
 
     // サイズが異常のとき、強制終了
-    assert(fg.size() == 1 + N*2);
-    assert(x.size() == N*3+2);
+    assert(fg.size() == 1 + 2*N); // 目的関数で1、制約関数で2*N
+    assert(x.size() == 2*N + 2*N);  // 予測状態軌跡で2*N、将来入力軌跡で2*N
 
-    // indexing
-    Evector x0;
-    x0 = {x[0], x[1]};
-    Evector xhat;
-    for (i = 2; i < (N+1)*2; i++){
-        xhat.push_back(x[i]);   //x1~xN
-    }
-    Evector uhat;
-    for (i = N*2; i < N*(2+1); i++){
-        uhat.push_back(x[i]);
-    }
+    // 現在状態の読み込み
+    Evector xk = solveNLP::xk;  // これで問題なく読み込めているか少し不安
 
-    // 状態コスト係数の定義
-    Vector2d q{1.0, 1.0};
-    MatrixXd Q(2, 2);
-    Q = q.asDiagonal();
-    VectorXd qhat = q;
-    for(i = 0; i < N-1; i++){
-        qhat << qhat,
-                q;
-    }
-    MatrixXd Qhat(N*2, N*2);
-    Qhat = qhat.asDiagonal();
-
-    // 入力コスト係数の定義
-    double r = 1.0;
-    VectorXd rhat = r;
-    for (i = 0; i < N-1; i++){
-        rhat << rhat,
-                r;
-    }
-    MatrixXd Rhat(N, N);
-    Rhat = rhat.asDiagonal();
-
-    // 初期状態コスト
-    double cost_init;
-    cost_init = x0.transpose()*Q*x0;
-
-    // 状態コスト
-    double cost_state;
-    cost_state = xhat.transpose()*Qhat*xhat;
-
-    // 入力
-    double cost_input;
-    cost_input = uhat.transpose()*Rhat*uhat;
+    // 目的関数計算用の行列F
+    MatrixXd Q;
+    MatrixXd R;
+    MatrixXd Qhat;
+    MatrixXd Rhat;
+    MatrixXd F;
 
     // f(x)
-    fg[0] = 1/2*(cost_state + cost_input + cost_init);
+    fg[0] = (1/2)*x.transpose()*F*x + xk.transpose()*Q*xk;
+
+    // 制約関数計算用の行列G
+    MatrixXd A;
+    MatrixXd B;
+    MatrixXd Ahat;
+    MatrixXd Bhat;
+    MatrixXd G;
 
     // g(x)
-    for (i = 1; i < (1 + N); i++){
-        Evector& str;
-        vector<double> vx;
-        if (i == 1){
-            vx[i-1] = {xhat[2*i-2], xhat[2*i-1]};
-            str = vx[i-1] - (x0 + dt*stateEq(x0, uhat[i-1]));
-        } else {
-            vx[i-1] = {xhat[2*i-2], xhat[2*i-1]};
-            vx[i-2] = {xhat[2*(i-1)-2], xhat[2*(i-1)-1]};
-            str = vx[i-1] - (vx[i-2] + dt*stateEq(vx[i-2], uhat[i-1]));
-        }
-        
-        fg[2*i - 1] = str[0];
-        fg[2*i] = str[1];
+    Evector g;
+    g = G*x - Ahat*xk;  // これなんでエラー出るんやろ
+    for (int i = 0; i < 2*N; i++){  // 本当はfg.push_back(g)とかできたらいいんだけど
+        fg[i+1] = g[i];
     }
 
     return;
     
 }
 
-vector<double> solveNLP::solve(VectorXd x){
-    bool ok = true;
-    size_t i;
-    typedef CPPAD_TESTVECTOR(AD<double>) Evector;
+solveNLP::solveNLP() : 
+    success(true), 
+    N(PREDICTION_STEPS_NUM), 
+    dt(0.05), 
+    nx(2*N + 2*N), 
+    ng(2*N)
+{
+    // サブスクライバのハンドラ立ち上げ
+    sub_curstate = nh.subscribe("/mpc_to_nlp", 10, &solveNLP::mpcCallback, this);
 
-    // 独立変数の個数
-    size_t nx = N*2;
+    // パブリッシャのハンドラ立ち上げ
+    pub_input = nh.advertise<float64>("nlp_to_mpc", 10);    // メッセージ型はfloat64という書き方でいいのか
 
-    // 制約条件の個数
-    size_t ng = N*2;
+    // 独立変数の初期化
+    xi.resize(nx);
+    for (int i = 0; i < nx; i++){    xi[i] = 0.0;}
 
-    // 独立変数の初期値
-    Evector xi(nx);
-    for (i = 0; i < nx; i++){
-        xi[i] = 0.0;
-    }
-    xi[0] = x[0];
-    xi[1] = x[1];
-
-    // 状態量の上限と下限を設定する
-    Evector xl(nx), xu(nx);
-    for (i = 0; i < nx; i++){
-        // バルブ角度の制限
+    // 独立変数の上限、下限を設定
+    xl.resize(nx);
+    xu.resize(nx);
+    for (int i = 0; i < 2*N; i++){
+        // モーター角度の制限
         xl[2*i] = 0.0;
-        xu[2*i] = M_PI/2;
+        xu[2*i] = (1/Ng)*(M_PI/2);
 
-        // バルブ角速度の制限
-        xl[2*i+1] = ;
-        xu[2*i+1] = ;
+        // モーター角速度の制限(めっちゃ適当)
+        xl[2*i+1] = -10.0;
+        xu[2*i+1] = 10.0;
+    }
+    for (int i = 2*N; i < nx; i++){
+        // 入力電圧の制限
+        xl[2*i] = 0.0;
+        xu[2*i] = 12.0;
+
+        // 仮想入力の等号制約
+        xl[2*i+1] = 1.0;
+        xu[2*i+1] = 1.0;
     }
 
-    // 制約関数の上限と下限を設定する
-    Evector gl(ng), gu(ng);
+    // 制約関数の上限と下限を設定
+    gl.resize(ng);
+    gu.resize(ng);
     for (i = 0; i < ng; i++){
-        // 等号制約条件
+        // 等号制約
         gl[i] = 0.0;
         gu[i] = 0.0;
     }
 
-    // 目的関数と制約条件を計算するオブジェクト
-    FG_eval fg_eval;
+}
 
-    // NLPソルバーのオプション設定
-    std::string options;
+void solveNLP::mpcCallback(const custom_msgs::mpc_to_nlp& sub_mpc_curstate){
+    xk = sub_mpc_curstate;
 
-    // 処理内容をプリントしない
-    options += "Integer print_level 0\n";
-    options += "String  Sb          yes\n";
+}
 
-    // 最大反復回数
-    options += "Integer max_iter    10\n";
+void solveNLP::spin(){
+    ros::Rate loop_rate(20);
+    while (ros::ok() && success){
+        // Callback関数の呼び出し
+        ros::spinOnce();
 
-    // 一次近似における必要精度
-    options += "Numeric tol         1e-6\n";
+        // 非線形問題を解く
+        CppAD::ipopt::solve<Evector, FG_eval>(
+            options, xi, xl, xu, gl, gu, fg_eval, solution
+        );
 
-    // 導関数のテスト??
-    options += "String  derivative_test             second-order\n";
+        // 解の一部の整合性評価
+        success &= solution.status == CppAD::ipopt::solve_result<Evector>::success;
 
-    // 有限差分評価時における、ランダム摂動量の最大値
-    options += "Numeric point_perturbation_radius   0.\n";
+        // コストのプリントアウト
+        auto cost = solution.obj_value;
+        cout << "Cost: " << cost << endl;
 
-    // オプション設定終わり
+        // モーター角度・角速度、および入力電圧の最適解
+        sol.push_back(solution.x[0]);   // θm
+        sol.push_back(solution.x[1]);   // dθm
+        sol.push_back(solution.x[2*N]); // V
 
-    // 解を返す変数
-    CppAD::ipopt::solve_result<Evector> solution;
+        // 入力電圧の送信
+        pub_input.publish(sol[2]);
 
-    // 非線形問題を解く
-    CppAD::ipopt::solve<Evector, FG_eval>(
-        options, xi, xl, xu, gl, gu, fg_eval, solution
-    );
-
-    // 解の一部をチェックする
-    ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-    
-    auto cost = solution.obj_value;
-    cout << "Cost: " << cost << endl;
-
-    // バルブ角と角速度、および出力電圧の最適解
-    vector<double> sol;
-    sol.push_back(solution.x[0]);   // theta
-    sol.push_back(solution.x[1]);   // dtheta
-    sol.push_back(solution.x[N*2]); // U
-
-    return sol;
+        loop_rate.sleep();
+    }
 }
 
 }   // end vetc namespace

@@ -1,6 +1,6 @@
 #include "../include/nlp_solver.hpp"
 
-namespace vtec{
+namespace vetc{
 
 int main(int argc, char **argv)
 {
@@ -11,4 +11,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
-} // end vtec namespace
+} // end vetc namespace
