@@ -8,38 +8,19 @@ using CppAD::NearEqual;
 namespace vetc{
 
 void FG_eval::operator()(Evector& fg, const Evector& x){
-    // 予測ステップ数
-    int N = PREDICTION_STEPS_NUM;
-
     // サイズが異常のとき、強制終了
     assert(fg.size() == 1 + 2*N); // 目的関数で1、制約関数で2*N
     assert(x.size() == 2*N + 2*N);  // 予測状態軌跡で2*N、将来入力軌跡で2*N
 
     // 現在状態の読み込み
-    Evector xk = solveNLP::xk;  // これで問題なく読み込めているか少し不安
+    Evector xk = solveNLP::xk;  // これで問題なく読み込めているか不安
 
-    // 目的関数計算用の行列F
-    MatrixXd Q;
-    MatrixXd R;
-    MatrixXd Qhat;
-    MatrixXd Rhat;
-    MatrixXd F;
-
-    // f(x)
-    fg[0] = (1/2)*x.transpose()*F*x + xk.transpose()*Q*xk;
-
-    // 制約関数計算用の行列G
-    MatrixXd A;
-    MatrixXd B;
-    MatrixXd Ahat;
-    MatrixXd Bhat;
-    MatrixXd G;
-
-    // g(x)
-    Evector g;
-    g = G*x - Ahat*xk;  // これなんでエラー出るんやろ
-    for (int i = 0; i < 2*N; i++){  // 本当はfg.push_back(g)とかできたらいいんだけど
-        fg[i+1] = g[i];
+    // 目的関数f(x)、制約関数g(x)
+    fg[0] = (1/2)*x.transpose()*F*x + xk.transpose()*Q*xk;  // f(x)
+    Evector g;  // この定義は良くない、サイズは決まってるからね。
+    g = G*x - Ahat*xk;
+    for (int i = 0; i < 2*N; i++){
+        fg[i+1] = g[i]; // g(x)
     }
 
     return;

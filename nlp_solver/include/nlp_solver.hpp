@@ -25,6 +25,84 @@ public:
 
     void operator()(Evector& fg, const Evector& x); // ()演算子のオーバーロード
 
+private: 
+    int N = PREDICTION_STEPS_NUM;
+
+    // こいつらは一回計算するだけでいいから、#pragma onceがついてるここで計算したほうがいい。それか、デフォルトコンストラクタでやるかどっちか。
+    Vector2d q;
+    Vector2d h;
+    double   r;
+    Matrix2d Q;
+    Matrix2d H;
+    double   R;
+
+    Matrix<double, 2*N, 2*N> Qhat;
+    Matrix<double, N, N>     Rhat;
+
+    Matrix2d             A;
+    Matrix<double, 2, 1> B;
+
+    Matrix<double, 2*N, 2> Ahat;
+    Matrix<double, 2*N, N> Bhat;
+
+    Matrix<double, 3*N, 3*N> F;
+    Matrix<double, 2*N, 3*N> G;
+
+    // 状態コストQ, 終端コストH, 入力コストR
+    q = (1.0, 1.0);
+    h = Vector2d(10.0, 10.0);
+    R = 1.0;
+    Q = q.asDiagonal();
+    H = h.asDiagonal();
+
+    // Qhat, Rhat
+    Qhat = Zeros(2*N, 2*N); // 行列の部分を参照して、そこに入れたい行列を代入するってな操作
+    for (int i = 0; i < N; i++){
+        if(i == N-1) Qhat.block(2*i,2*i, 2,2) = H;
+        else Qhat.block(2*i,2*i, 2,2) = Q;
+    }
+    Matrix<double, N, 1> rhat;
+    for (int i = 0; i < N; i++){
+        rhat[i] = R;
+    }
+    Rhat = rhat.asDiagonal();
+
+    // 状態方程式行列A, B
+    A << 0.0            , 1.0                 , 
+         -(1/J)*(Ng*Ksp), -(1/J)*(D + Ke*Kt/R);
+    B << 0.0, Kt/(R*J);
+
+    // Ahat, Bhat
+    Ahat = Zeros(2*N, 2);
+    for (int i = 0; i < N; i++){
+        if (i == 0) {
+            Ahat.block(2*i,0, 2,1) = A;
+        } else {
+            Ahat.block(2*i,0, 2,1) = Ahat.block(2*(i-1),0, 2,1)*A;
+        }
+    }
+    Bhat = Zeros(2*N, N);
+    for (int i = 0; i < N: i++){    // 要検算
+        if(i == 0){
+            for (int j = 0; j < N-i; j++){
+                Bhat.block(2*i,0, 2*(N-i),(N-i)).block(2*j,j, 2,1) = B;
+            }
+        } else {
+            for (int j = 0; j < N-i; j++){
+                Bhat.block(2*i,0, 2*(N-i),(N-i)).block(2*j,j, 2,1) = A*Bhat.block(2*(i-1),0, 2, 1);
+            }
+        }
+    }
+
+    // 目的関数行列F、制約関数行列G
+    F = Zeros(3*N, 3*N);
+    F.block(0,0, 2*N,2*N) = Qhat;
+    F.block(2*N,2*N, N,N) = Rhat;
+    G = Zeros(2*N, 3*N);
+    Matrix<double, 2*N, 2*N> I = Identity(2*N, 2*N);
+    G.block(0,0, 2*N,2*N) = I;
+    G.block(0,2*N, 2*N,N) = -Bhat;
+
 };
 
 class solveNLP
