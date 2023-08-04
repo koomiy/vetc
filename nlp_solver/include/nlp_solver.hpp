@@ -28,7 +28,7 @@ public:
 private: 
     int N = PREDICTION_STEPS_NUM;
 
-    // こいつらは一回計算するだけでいいから、#pragma onceがついてるここで計算したほうがいい。それか、デフォルトコンストラクタでやるかどっちか。
+    // こいつらは一回計算するだけでいいから、#pragma onceがついてるここで計算したほうがいい。
     Vector2d q;
     Vector2d h;
     double   r;
