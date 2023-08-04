@@ -3,9 +3,9 @@
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <custom_msgs/mpc_to_nlp.h>
-#include <cppad/cppad.hpp>
-#include <cppad/ipopt/solve.hpp>
-//#include <cppad/example/cppad_eigen.hpp>
+#include "cppad/cppad.hpp"
+#include "cppad/ipopt/solve.hpp"
+#include "cppad/example/cppad_eigen.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <cmath>
@@ -13,7 +13,7 @@
 using namespace std;
 using namespace Eigen;
 using CppAD::AD;
-//using CppAD::NearEqual;
+using CppAD::NearEqual;
 
 // #define PREDICTION_STEPS_NUM 5
 #define N 5
@@ -24,7 +24,7 @@ public:
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;   // ADvectorを、Eigen::Matrix<AD<double>, Eigen::Dynamic, 1>(要素がAD<double>型の可変長eigenベクトル)として型定義
     typedef CPPAD_TESTVECTOR(double) Dvector;
 
-    Dvector xk;
+    ADvector xk;
     FG_eval(Dvector xk) {
         this->xk[0] = xk[0];
         this->xk[1] = xk[1];
@@ -47,26 +47,25 @@ private:
 
     // こやつらは別途setup_mpcパッケージかなんか用意して、F,Gだけ送るようにした方がいいかもな
     // setup_mpcでF,Gの計算は一回しか行わないけど、常にメッセージだけ送り続けるみたいな
-    Vector2d q;
-    Vector2d h;
+    // うーん、一旦これはこれで置いておいて、Eigenの積に関係する行列はすべてAD型を使わないようにしてみようか
+    Matrix<AD<double>, 2, 1> q;
+    Matrix<AD<double>, 2, 1> h;
     double   r;
-    Matrix2d Q;
-    Matrix2d H;
+    Matrix<AD<double>, 2, 2> Q;
+    Matrix<AD<double>, 2, 2> H;
     double   R;
 
-    Matrix<double, 2*N, 2*N> Qhat;
-    Matrix<double, N, N>     Rhat;
+    Matrix<AD<double>, 2*N, 2*N> Qhat;
+    Matrix<AD<double>, N, N>     Rhat;
 
-    Matrix2d A;
-    Vector2d B;
+    Matrix<AD<double>, 2, 2> A;
+    Matrix<AD<double>, 2, 1> B;
 
-    Matrix<double, 2*N, 2> Ahat;
-    Matrix<double, 2*N, N> Bhat;
+    Matrix<AD<double>, 2*N, 2> Ahat;
+    Matrix<AD<double>, 2*N, N> Bhat;
 
-    Matrix<double, 3*N, 3*N> F;
-    Matrix<double, 2*N, 3*N> G;
-
-    Dvector si; // state and input
+    Matrix<AD<double>, 3*N, 3*N> F;
+    Matrix<AD<double>, 2*N, 3*N> G;
 
 };
 

@@ -18,7 +18,7 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x){
     H = h.asDiagonal();
 
     // Qhat, Rhat
-    Qhat = Matrix<double, 2*N, 2*N>::Zero(2*N, 2*N); // 行列の部分を参照して、そこに入れたい行列を代入するってな操作
+    Qhat = Matrix<AD<double>, 2*N, 2*N>::Zero(2*N, 2*N); // 行列の部分を参照して、そこに入れたい行列を代入するってな操作
     for (int i = 0; i < N; i++){
         if(i == N-1) Qhat.block(2*i,2*i, 2,2) = H;
         else Qhat.block(2*i,2*i, 2,2) = Q;
@@ -35,7 +35,7 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x){
     B << 0.0, Kt/(Re*J);
 
     // Ahat, Bhat
-    Ahat = Matrix<double, 2*N, 2>::Zero(2*N, 2);
+    Ahat = Matrix<AD<double>, 2*N, 2>::Zero(2*N, 2);
     for (int i = 0; i < N; i++){
         if (i == 0) {
             Ahat.block(2*i,0, 2,1) = A;
@@ -43,7 +43,7 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x){
             Ahat.block(2*i,0, 2,1) = Ahat.block(2*(i-1),0, 2,1)*A;
         }
     }
-    Bhat = Matrix<double, 2*N, N>::Zero(2*N, N);
+    Bhat = Matrix<AD<double>, 2*N, N>::Zero(2*N, N);
     for (int i = 0; i < N; i++){    // 要検算
         if(i == 0){
             for (int j = 0; j < N-i; j++){
@@ -57,23 +57,18 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x){
     }
 
     // 目的関数行列F、制約関数行列G
-    F = Matrix<double, 3*N, 3*N>::Zero(3*N, 3*N);
+    F = Matrix<AD<double>, 3*N, 3*N>::Zero(3*N, 3*N);
     F.block(0,0, 2*N,2*N) = Qhat;
     F.block(2*N,2*N, N,N) = Rhat;
-    G = Matrix<double, 2*N, 3*N>::Zero(2*N, 3*N);
-    Matrix<double, 2*N, 2*N> I = Matrix<double, 2*N, 2*N>::Identity(2*N, 2*N);
+    G = Matrix<AD<double>, 2*N, 3*N>::Zero(2*N, 3*N);
+    Matrix<AD<double>, 2*N, 2*N> I = Matrix<AD<double>, 2*N, 2*N>::Identity(2*N, 2*N);
     G.block(0,0, 2*N,2*N) = I;
     G.block(0,2*N, 2*N,N) = -Bhat;
 
     // 目的関数f(x)、制約関数g(x)
-    for (int i = 0; i < 2*N; i++){
-        si[i] = CppAD::Value(x[i]);
-    }
-    //double f;
-    //f = (si.transpose()*F*si + xk.transpose()*Q*xk);
-    //fg[0] = f;  // f(x)
-    /*Dvector g;
-    g = G*si - Ahat*xk;
+    fg[0] = (1/2)*(x.transpose()*F*x + xk.transpose()*Q*xk);  // f(x)
+    /*ADvector g;  // この定義は良くない、サイズは決まってるからね。
+    g = G*x - Ahat*xk;
     for (int i = 0; i < 2*N; i++){
         fg[i+1] = g[i]; // g(x)
     }*/
@@ -93,7 +88,7 @@ solveNLP::solveNLP() :
     sub_curstate = nh.subscribe("/mpc_to_nlp", 10, &solveNLP::mpcCallback, this);
 
     // パブリッシャのハンドラ立ち上げ
-    pub_input = nh.advertise<std_msgs::Float64>("/nlp_to_mpc", 10);
+    pub_input = nh.advertise<std_msgs::Float64>("/nlp_to_mpc", 10);    // メッセージ型はfloat_tという書き方でいいのか
 
     // 独立変数の初期化
     xi.resize(nx);
@@ -184,9 +179,7 @@ void solveNLP::spin(){
         sol.push_back(solution.x[2*N]); // V
 
         // 入力電圧の送信
-        std_msgs::Float64 Ve;
-        Ve.data = sol[2];
-        pub_input.publish(Ve);
+        pub_input.publish(sol[2]);
 
         loop_rate.sleep();
     }

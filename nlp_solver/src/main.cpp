@@ -1,7 +1,5 @@
 #include "../include/nlp_solver.hpp"
 
-namespace vetc{
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "nlp_node");
@@ -10,5 +8,3 @@ int main(int argc, char **argv)
     std::cout << "\next program\n" << std::endl;
     return 0;
 }
-
-} // end vetc namespace
