@@ -31,8 +31,6 @@ make install
 sudo nautilus
 
 ○Q&A
-How can I solve the "undefined reference to `CppAD::local::temp_file[abi:cxx11]()'" problem?
-
-/usr/bin/ld: CMakeFiles/nlp_node.dir/src/nlp_solver.cpp.o: in function `void CppAD::put_check_for_nan<double>(CppAD::vector<double> const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)':
-nlp_solver.cpp:(.text._ZN5CppAD17put_check_for_nanIdEEvRKNS_6vectorIT_EERNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE[_ZN5CppAD17put_check_for_nanIdEEvRKNS_6vectorIT_EERNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE]+0x4f): undefined reference to `CppAD::local::temp_file[abi:cxx11]()'
-collect2: error: ld returned 1 exit status
+Q: How can I solve this problem, "undefined reference to CppAD::local::temp_file()" ?
+A: temp_file should be in cppad_lib; see https://github.com/coin-or/CppAD/blob/master/cppad_lib/temp_file.cpp
+Q: I added cppad_lib in target_link_libraries, then catkin build succeeded.

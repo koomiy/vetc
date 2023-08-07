@@ -40,4 +40,5 @@ target_link_libraries(nlp_node
   ${catkin_LIBRARIES}
   Eigen3::Eigen
   ipopt
+  cppad_lib
 )
