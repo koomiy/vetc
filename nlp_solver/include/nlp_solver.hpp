@@ -5,7 +5,7 @@
 #include <custom_msgs/mpc_to_nlp.h>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
-//#include <cppad/example/cppad_eigen.hpp>
+#include <cppad/example/cppad_eigen.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <cmath>
@@ -24,7 +24,7 @@ public:
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;   // ADvectorを、Eigen::Matrix<AD<double>, Eigen::Dynamic, 1>(要素がAD<double>型の可変長eigenベクトル)として型定義
     typedef CPPAD_TESTVECTOR(double) Dvector;
 
-    Dvector xk;
+    Vector2d xk;
     FG_eval(Dvector xk) {
         this->xk[0] = xk[0];
         this->xk[1] = xk[1];
@@ -66,7 +66,7 @@ private:
     Matrix<double, 3*N, 3*N> F;
     Matrix<double, 2*N, 3*N> G;
 
-    Dvector si; // state and input
+    Matrix<double, 3*N, 1> si; // state and input
 
 };
 

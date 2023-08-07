@@ -69,14 +69,12 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x){
     for (int i = 0; i < 2*N; i++){
         si[i] = CppAD::Value(x[i]);
     }
-    //double f;
-    //f = (si.transpose()*F*si + xk.transpose()*Q*xk);
-    //fg[0] = f;  // f(x)
-    /*Dvector g;
+    fg[0] = (si.transpose()*(F*si) + xk.transpose()*(Q*xk)).value();  // f(x) ちゃんと値が計算されているか要確認
+    Matrix<double, 2*N, 1> g;
     g = G*si - Ahat*xk;
     for (int i = 0; i < 2*N; i++){
-        fg[i+1] = g[i]; // g(x)
-    }*/
+        fg[i+1] = g[i]; // g(x) ちゃんと値が計算されているか要確認
+    }
 
     return;
     
