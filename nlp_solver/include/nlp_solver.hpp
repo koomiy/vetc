@@ -13,7 +13,6 @@
 using namespace std;
 using namespace Eigen;
 using CppAD::AD;
-//using CppAD::NearEqual;
 
 // #define PREDICTION_STEPS_NUM 5
 #define N 5
@@ -117,9 +116,7 @@ private:
     CppAD::ipopt::solve_result<Dvector> solution;   // 解を返す変数
     // ======================================== //
 
-    
-    
-
-    
-
 };
+
+// とりあえずビルドは通るようになった(230807)
+// 今後、より可読性の高い構造に変える

@@ -3,7 +3,6 @@
 using namespace std;
 using namespace Eigen;
 using CppAD::AD;
-using CppAD::NearEqual;
 
 void FG_eval::operator()(ADvector& fg, const ADvector& x){
     // サイズが異常のとき、強制終了

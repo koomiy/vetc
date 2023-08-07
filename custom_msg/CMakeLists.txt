@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
+    sf_to_mpc.msg
     mpc_to_nlp.msg
 )
 
