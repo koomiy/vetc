@@ -41,16 +41,14 @@ cmakeコマンドでビルド&インストールを行う
 様々なオプションがあるが、結論から先にいうと、
 次のコマンドをdevel/cppad.git/buildディレクトリで実行すればよい
 cmake                                                                      \
+    -D CMAKE_VERBOSE_MAKEFILE=true                                         \
     -G "Unix Makefiles"                                                    \
     -D cppad_prefix=username/devel/cppad.git/local                         \
     -D cmake_install_includedirs=include                                   \
-    -D cmake_install_libdirs=lib64 lib                                     \
+    -D cmake_install_libdirs=lib                                           \
     -D include_adolc=true                                                  \
     -D include_eigen=true                                                  \
     -D include_ipopt=true                                                  \
-    -D colpack_prefix=username/devel/cppad.git/build/prefix                \
-    -D fadbad_prefix=username/devel/cppad.git/build/prefix                 \
-    -D sacado_prefix=username/devel/cppad.git/build/prefix                 \
     -D cppad_testvector=eigen                                              \
     ..
 ただし、以降に記述する内容を事前に実行しておくこと
@@ -67,12 +65,9 @@ cppad.gitディレクトリでbin/get_ipopt.shを実行する
 必ずこの順でインストールすること
 ・blas       ベクトル、行列に関する基本演算ライブラリ
 ・lapack     blasを用いて連立一次方程式や固有値などの線形計算を行うライブラリ　
-・colpack    adolcに必要
 ・adolc      
 ・eigen      直感的に行列演算をコーディングできる
 ・ipopt      非線形最適ソルバー
-・fadbad     
-・sacado     
 
 ◎blas&lapackのインストール
 lapackの最新版をtar.gz形式でダウンロード
@@ -110,11 +105,13 @@ ${ENV} = /usr/lib/pkgconfigである
 
 
 ○cmake_checkでビルド&テスト
-cppad.git/buildディレクトリで下記コマンドを実行すると、ビルド&テストができる
-make check .
-実行には一時間程度要する
+cppad.git/buildディレクトリで下記コマンドを実行すると、ipoptに関するビルド&テストができる
+make check_cppad_ipopt
 
-個別にインストールしたい場合は、下記のようにする
+すべてのテストを行いたい場合は、次のコマンドを実行する
+make check .
+
+個別にテストしたい場合は、下記のようにする
 make check_introduction     初歩機能
 make check_example          通常のサンプル機能および、いくつかの非推奨サンプル機能
 make check_test_more        正確性テスト
@@ -124,8 +121,7 @@ make check_cppad_ipopt      非推奨機能のcppad_ipopt_nlpの正確性およ�
 また、make check_example_multi_threadを実行すると、
 マルチスレッドにおけるスピードテストが行える
 
-すべての機能をインストールする必要性はないと思われるが、
-筆者は各機能の使いみちを詳しく知らないのでフルインストールした
+すべての機能をインストールする必要性はない
 
 ○インストールする
 cppad.git/buildディレクトリで
