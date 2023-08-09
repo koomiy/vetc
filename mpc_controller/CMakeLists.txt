@@ -36,3 +36,7 @@ target_link_libraries(mpc_node
   ${catkin_LIBRARIES}
   Eigen3::Eigen
 )
+
+add_dependencies(mpc_node
+  ${catkin_EXPORTED_TARGETS}
+)

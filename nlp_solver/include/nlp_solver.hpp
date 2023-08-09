@@ -15,7 +15,7 @@ using namespace Eigen;
 using CppAD::AD;
 
 // #define PREDICTION_STEPS_NUM 5
-#define N 5
+const int N = 5;
 
 class FG_eval
 {
@@ -23,8 +23,8 @@ public:
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;   // ADvectorを、Eigen::Matrix<AD<double>, Eigen::Dynamic, 1>(要素がAD<double>型の可変長eigenベクトル)として型定義
     typedef CPPAD_TESTVECTOR(double) Dvector;
 
-    Vector2d xk;
-    FG_eval(Dvector xk) {
+    Matrix<AD<double>, 2, 1> xk;
+    FG_eval(Vector2d xk) {
         this->xk[0] = xk[0];
         this->xk[1] = xk[1];
     }
@@ -35,37 +35,38 @@ private:
     //int N = PREDICTION_STEPS_NUM;
     //static int N = 5;
 
+    // 以下、何がAD<Base>型で何がBase型であるべきかを慎重に議論した方がいい
     // パラメータ
-    double J = 1.0;
-    double D = 1.0;
-    double Kt = 1.0;
-    double Ksp = 1.0;
-    double Re = 1.0;
-    double Ke = 1.0;
-    double Ng = 1.0;
+    AD<double> J = 1.0;
+    AD<double> D = 1.0;
+    AD<double> Kt = 1.0;
+    AD<double> Ksp = 1.0;
+    AD<double> Re = 1.0;
+    AD<double> Ke = 1.0;
+    AD<double> Ng = 1.0;
 
     // こやつらは別途setup_mpcパッケージかなんか用意して、F,Gだけ送るようにした方がいいかもな
     // setup_mpcでF,Gの計算は一回しか行わないけど、常にメッセージだけ送り続けるみたいな
-    Vector2d q;
-    Vector2d h;
-    double   r;
-    Matrix2d Q;
-    Matrix2d H;
-    double   R;
+    Matrix<AD<double>, 2, 1> q;
+    Matrix<AD<double>, 2, 1> h;
+    AD<double>   r;
+    Matrix<AD<double>, 2, 2> Q;
+    Matrix<AD<double>, 2, 2> H;
+    AD<double>   R;
 
-    Matrix<double, 2*N, 2*N> Qhat;
-    Matrix<double, N, N>     Rhat;
+    Matrix<AD<double>, 2*N, 2*N> Qhat;
+    Matrix<AD<double>, N, N>     Rhat;
 
-    Matrix2d A;
-    Vector2d B;
+    Matrix<AD<double>, 2, 2> A;
+    Matrix<AD<double>, 2, 1> B;
 
-    Matrix<double, 2*N, 2> Ahat;
-    Matrix<double, 2*N, N> Bhat;
+    Matrix<AD<double>, 2*N, 2> Ahat;
+    Matrix<AD<double>, 2*N, N> Bhat;
 
-    Matrix<double, 3*N, 3*N> F;
-    Matrix<double, 2*N, 3*N> G;
+    Matrix<AD<double>, 3*N, 3*N> F;
+    Matrix<AD<double>, 2*N, 3*N> G;
 
-    Matrix<double, 3*N, 1> si; // state and input
+    Matrix<AD<double>, 3*N, 1> si; // state and input
 
 };
 
@@ -77,7 +78,7 @@ public:
     solveNLP();
     void spin();
 
-    Dvector xk; // 現在の状態
+    Vector2d xk; // 現在の状態
 
 private: 
     // mpcから現在状態を受け取るCallback関数

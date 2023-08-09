@@ -11,7 +11,7 @@ mpc::mpc() :
     sub_angles = nh.subscribe("/sf_to_mpc", 10, &mpc::sensorCallback, this);
 
     // サービスクライアントの設定
-    client = nh.serviceClient<custom_msgs::mpc_bw_nlp>("/mpc_bw_nlp");   // 引数これだけでいいのか？
+    client = nh.serviceClient<custom_msgs::mpc_bw_nlp>("solve");   // 引数これだけでいいのか？
 
     // パブリッシャのハンドラ立ち上げ
     pub_angle = nh.advertise<std_msgs::Float64>("/mpc_to_rviz", 10);

@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<launch>
+  <node name="nlp_node" pkg="nlp_solver" type="nlp_node" output="screen"/>
+  <node name="mpc_node" pkg="mpc_controller" type="mpc_node" output="screen"/>
+  
+</launch>

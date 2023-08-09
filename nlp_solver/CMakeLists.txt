@@ -42,3 +42,7 @@ target_link_libraries(nlp_node
   ipopt
   cppad_lib
 )
+
+add_dependencies(nlp_node
+  ${catkin_EXPORTED_TARGETS}
+)
