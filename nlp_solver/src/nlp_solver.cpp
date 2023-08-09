@@ -86,11 +86,8 @@ solveNLP::solveNLP() :
     nx(2*N + 2*N), 
     ng(2*N)
 {
-    // サブスクライバのハンドラ立ち上げ
-    sub_curstate = nh.subscribe("/mpc_to_nlp", 10, &solveNLP::mpcCallback, this);
-
-    // パブリッシャのハンドラ立ち上げ
-    pub_input = nh.advertise<std_msgs::Float64>("/nlp_to_mpc", 10);
+    // サービスサーバーの設定
+    server = nh.advertiseService("/mpc_to_nlp", &solveNLP::mpcService, this);   // 引数はこれだけでいいのか？
 
     // 独立変数の初期化
     xi.resize(nx);
@@ -129,62 +126,65 @@ solveNLP::solveNLP() :
 
 }
 
-void solveNLP::mpcCallback(const custom_msgs::mpc_to_nlp& sub_mpc_curstate){
-    xk[0] = sub_mpc_curstate.theta_e;
-    xk[1] = sub_mpc_curstate.dtheta_e;
+bool solveNLP::mpcService(custom_msgs::mpc_bw_nlp::Request& req_mpc_states,
+                          custom_msgs::mpc_bw_nlp::Response& res_nlp_input){
+    xk[0] = req_mpc_states.theta_error;
+    xk[1] = req_mpc_states.dtheta_error;
 
+    // ここに今spinに書いてる内容を書けばいい
+    FG_eval fg_eval(xk);
+
+    // ========== NLPソルバーのオプション設定 ========== //
+    // 処理内容をプリントしない
+    options += "Integer print_level 0\n";
+    options += "String  Sb          yes\n";
+
+    // 最大反復回数
+    options += "Integer max_iter    10\n";
+
+    // 一次近似における必要精度
+    options += "Numeric tol         1e-6\n";
+
+    // 導関数のテスト??
+    options += "String  derivative_test             second-order\n";
+
+    // 有限差分評価時における、ランダム摂動量の最大値
+    options += "Numeric point_perturbation_radius   0.\n";
+    // ================================================== //
+
+    // 非線形問題を解く
+    CppAD::ipopt::solve<Dvector, FG_eval>(
+        options, xi, xl, xu, gl, gu, fg_eval, solution
+    );
+
+    // 解の一部の整合性評価
+    success &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
+    if (!success) return false;
+
+    // コストのプリントアウト
+    auto cost = solution.obj_value;
+    cout << "Cost: " << cost << endl;
+
+    // モーター角度・角速度、および入力電圧の最適解
+    sol.clear();
+    sol.resize(3);
+    sol.push_back(solution.x[0]);   // θm
+    sol.push_back(solution.x[1]);   // dθm
+    sol.push_back(solution.x[2*N]); // V
+
+    // 入力電圧の送信
+    res_nlp_input.input_error = sol[2];
+
+    return true;
+    
 }
 
 void solveNLP::spin(){
-    ros::Rate loop_rate(20);
+    ros::Rate loop_rate(20);    // Hz
     while (ros::ok() && success){
         // Callback関数の呼び出し
         ros::spinOnce();
-
-        FG_eval fg_eval(xk);
-
-        // ========== NLPソルバーのオプション設定 ========== //
-        // 処理内容をプリントしない
-        options += "Integer print_level 0\n";
-        options += "String  Sb          yes\n";
-
-        // 最大反復回数
-        options += "Integer max_iter    10\n";
-
-        // 一次近似における必要精度
-        options += "Numeric tol         1e-6\n";
-
-        // 導関数のテスト??
-        options += "String  derivative_test             second-order\n";
-
-        // 有限差分評価時における、ランダム摂動量の最大値
-        options += "Numeric point_perturbation_radius   0.\n";
-        // ================================================== //
-
-        // 非線形問題を解く
-        CppAD::ipopt::solve<Dvector, FG_eval>(
-            options, xi, xl, xu, gl, gu, fg_eval, solution
-        );
-
-        // 解の一部の整合性評価
-        success &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-
-        // コストのプリントアウト
-        auto cost = solution.obj_value;
-        cout << "Cost: " << cost << endl;
-
-        // モーター角度・角速度、および入力電圧の最適解
-        sol.clear();
-        sol.resize(3);
-        sol.push_back(solution.x[0]);   // θm
-        sol.push_back(solution.x[1]);   // dθm
-        sol.push_back(solution.x[2*N]); // V
-
-        // 入力電圧の送信
-        std_msgs::Float64 Ve;
-        Ve.data = sol[2];
-        pub_input.publish(Ve);
-
         loop_rate.sleep();
     }
+
 }

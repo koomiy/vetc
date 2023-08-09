@@ -2,7 +2,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
-#include <custom_msgs/mpc_to_nlp.h>
+#include <custom_msgs/mpc_bw_nlp.h>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <cppad/example/cppad_eigen.hpp>
@@ -81,12 +81,12 @@ public:
 
 private: 
     // mpcから現在状態を受け取るCallback関数
-    void mpcCallback(const custom_msgs::mpc_to_nlp& sub_mpc_curstate);
+    bool mpcService(custom_msgs::mpc_bw_nlp::Request& req_mpc_states,
+                    custom_msgs::mpc_bw_nlp::Response& res_nlp_input);
 
-    // ハンドラと、パブリッシャ・サブスクライバの定義
+    // ハンドラと、サービスサーバーの定義
     ros::NodeHandle nh;
-    ros::Subscriber sub_curstate;
-    ros::Publisher  pub_input;
+    ros::ServiceServer server;
 
     // ========== 環境変数 ========== //
     bool   success;     // 正常動作判定

@@ -12,7 +12,12 @@ add_message_files(
   DIRECTORY msg
   FILES
     sf_to_mpc.msg
-    mpc_to_nlp.msg
+)
+
+add_service_files(
+  DIRECTORY srv
+  FILES
+    mpc_bw_nlp.srv
 )
 
 generate_messages(
@@ -23,6 +28,7 @@ generate_messages(
 
 catkin_package(
   CATKIN_DEPENDS
+    roscpp
     message_runtime
     std_msgs
     geometry_msgs

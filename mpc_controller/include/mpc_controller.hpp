@@ -3,12 +3,12 @@
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <custom_msgs/sf_to_mpc.h>
-#include <custom_msgs/mpc_to_nlp.h>
+#include <custom_msgs/mpc_bw_nlp.h>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <cmath>
 
-#define MACHINE_ACTUATION 0;
+#define MACHINE_ACTUATION 0
 
 using namespace Eigen;
 
@@ -20,25 +20,24 @@ public:
     void spin();
 
 private: 
-    void sensorCallback(const custom_msgs::mpc_to_nlp& sub_sf_mpc);    // ２つのセンサーから角度と目標角度の両方を検出
-    void nlpCallback(const std_msgs::Float64& sub_nlp_mpc);     // アクション・リブ通信、サービス・クライアント通信とかを参考にしてもいいかもね
-
+    void sensorCallback(const custom_msgs::sf_to_mpc& sub_sf_mpc);    // ２つのセンサーから角度と目標角度の両方を検出
     void stateEq(const Vector2d& x, const double& u);
     void control();
     void actuate();
 
     // ハンドラと、パブリッシャ・サブスクライバの定義
-    ros::NodeHandle nh;
-    ros::Subscriber sub_angles;
-    ros::Subscriber sub_input;
-    ros::Publisher  pub_curstate;
-    ros::Publisher  pub_input;
+    ros::NodeHandle    nh;
+    ros::Subscriber    sub_angles;
+    ros::ServiceClient client;
+    ros::Publisher     pub_angle;
+    ros::Publisher     pub_input;
 
     // 環境変数
     int count;
     int controlCycle;
     double dt;
     double time;
+    bool machine_actuation;
 
     // パラメータ
     double J;
@@ -56,11 +55,13 @@ private:
     // 独立変数
     Vector2d x;     // 状態エラー
     Vector2d dx;    // 状態エラーの時間微分
+    double target_angle;
+    double cur_angle;
     double u;   // 入力エラー
 
 };
 
-class timer // 時間に関する更新はここで一括で行いたい
+/*class timer // 時間に関する更新はここで一括で行いたい
 {
 public: 
     timer();
@@ -69,7 +70,7 @@ public:
     int controlCycle;
     double dt;
     double time;
-};
+};*/
 
 class param // パラメータの設定はここで一括でやりたい
 {
