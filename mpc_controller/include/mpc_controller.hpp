@@ -8,7 +8,7 @@
 #include <Eigen/Core>
 #include <cmath>
 
-#define MACHINE_ACTUATION 0
+#define MACHINE_ACTUATION 1
 
 using namespace Eigen;
 
@@ -49,10 +49,6 @@ private:
     double L;
     double Ke;
     double Ng;
-
-    // 状態方程式
-    Matrix2d A;
-    Vector2d B;
 
     // 独立変数
     Vector2d x;     // 状態の目標偏差
