@@ -20,8 +20,8 @@ public:
     void spin();
 
 private: 
+    void observer(const double& theta, const double& V);   // 
     void sensorCallback(const custom_msgs::sf_to_mpc& sub_sf_mpc);    // ２つのセンサーから角度と目標角度の両方を検出
-    void stateEq(const Vector2d& x, const double& u);
     void control();
     void actuate();
 
@@ -44,7 +44,9 @@ private:
     double D;
     double Kt;
     double Ksp;
+    double tau0;
     double Re;
+    double L;
     double Ke;
     double Ng;
 
@@ -53,11 +55,16 @@ private:
     Vector2d B;
 
     // 独立変数
-    Vector2d x;     // 状態エラー
-    Vector2d dx;    // 状態エラーの時間微分
-    double target_angle;
-    double cur_angle;
-    double u;   // 入力エラー
+    Vector2d x;     // 状態の目標偏差
+    double u;       // 入力電圧の目標偏差
+
+    double target_theta;    // 目標角度<rad>
+    double theta;           // 現在角度<rad>
+    double dtheta;          // 現在角速度<rad/s>
+    double ddtheta;         // 現在角加速度<rad/s^2>
+    double V;               // 現在電圧<V>
+    double I;               // 現在電流<A>
+    
 
 };
 
@@ -83,7 +90,9 @@ public:
     double D = Dm + Dv;
     double Kt = 1.0;
     double Ksp = 1.0;
+    double tau0 = 1.0;
     double Re = 1.0;
+    double L = 1.0;
     double Ke = 1.0;
     double Ng = 1.0;
 };

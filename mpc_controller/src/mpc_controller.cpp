@@ -26,45 +26,49 @@ void mpc::init(){
     D = prm.D;
     Kt = prm.Kt;
     Ksp = prm.Ksp;
+    tau0 = prm.tau0;
     Re = prm.Re;
+    L = prm.L;
     Ke = prm.Ke;
     Ng = prm.Ng;
 
     // 独立変数の初期化
     x = Vector2d(0.0, 0.0);
-    dx = Vector2d(0.0, 0.0);
-    cur_angle = 0.0;
-    target_angle = 0.0;
     u = 0.0;
+
+    target_theta = 0.0;
+    theta = 0.0;
+    dtheta = 0.0;
+    ddtheta = 0.0;
+    V = 0.0;
+    I = 0.0;
     
+}
+
+void mpc::observer(const double& theta, const double& V){
+    // 純粋なダイナミクス
+    double dI;
+    dI = (1/L)*V - (Ke/L)*dtheta - (Re/L)*I;
+    I = I + dI*dt;
+
+    ddtheta = (Kt/J)*I - (D/J)*dtheta - (Ksp*Ng/J)*theta - tau0/J;
+    dtheta = dtheta + ddtheta*dt;
+
 }
 
 void mpc::sensorCallback(const custom_msgs::sf_to_mpc& sub_sf_mpc){
-    //if(count % controlCycle != 0) return;
-    
-    // ポテンショメータからの信号を受け取る
-    // バルブ側から現在の状態を、アクセルペダル側から目標状態を受け取る
-    // 現在状態の目標誤差をMPCの状態として定義する
-    double x_pre = x[0];
-    target_angle = sub_sf_mpc.target_angle;
-    double x_cur = sub_sf_mpc.angle - target_angle;
-    x[0] = x_cur;
-    x[1] = (x_cur - x_pre)/dt;
+    // 現在モータ角速度を推定
+    observer(theta, V);
 
-}
+    target_theta = sub_sf_mpc.target_angle;     // 目標モータ角度
+    theta = sub_sf_mpc.angle;               // 現在モータ角度
 
-void mpc::stateEq(const Vector2d& x, const double& u){
-    A << 0.0            , 1.0                  , 
-         -(1/J)*(Ng*Ksp), -(1/J)*(D + Ke*Kt/Re);
-    B << 0.0, Kt/(Re*J);
-
-    dx = A*x + B*u;
+    x[0] = theta - target_theta;   // 現在の目標角度偏差
+    x[1] = dtheta - 0.0;  // 現在の目標角速度偏差
 
 }
 
 void mpc::control(){
-    //if(count % controlCycle != 0) return;
-
     // NLPソルバー
     custom_msgs::mpc_bw_nlp server;
     // 現在状態と目標との誤差を指令値として設定
@@ -79,27 +83,23 @@ void mpc::control(){
         ROS_ERROR("Failed to call nlp server");
     }
 
-    // 状態の更新
-    stateEq(x, u);
-    x += dx*dt;
+    // 目標偏差を目標値に変換
+    V = u + (Re*Ksp*Ng/Kt)*target_theta + (Re/Kt)*tau0;
 
 }
 
 void mpc::actuate(){
-    //if(count % controlCycle != 0) return;
-
     // 現在状態をRvizに送信
-    cur_angle = x[0] + target_angle;
     std_msgs::Float64 valve_angle;
-    valve_angle.data = Ng*(cur_angle);
+    valve_angle.data = Ng*theta;
     pub_angle.publish(valve_angle);
 
     // 入力電圧をpwm生成器に送信
     if(machine_actuation){
-        // 出力電圧をpwm波形に変換する
-        std_msgs::Float64 V;
-        V.data += u;
-        pub_input.publish(V);
+        // pwm生成器に入力電圧を送信
+        std_msgs::Float64 voltage;
+        voltage.data = V;
+        pub_input.publish(voltage);
     }
     
 }
@@ -119,3 +119,6 @@ void mpc::spin(){
 /*timer::timer(){
 
 }*/
+
+// 試しになにか入力を入れてみる
+// RVizでモデルを可視化してみる
